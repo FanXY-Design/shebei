@@ -1,0 +1,83 @@
+{% extends "base.html" %}
+{% block title %}项目管理{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>🏗️ 项目管理</h4>
+    {% if current_user.role == '超级管理员' %}
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#projectModal">
+        <i class="bi bi-plus-lg"></i> 新建项目
+    </button>
+    {% endif %}
+</div>
+
+<div class="row g-3">
+    {% for project in projects %}
+    <div class="col-lg-4 col-md-6">
+        <div class="card project-card" onclick="location.href='{{ url_for('project_walk', project_id=project.id) }}'">
+            <div class="card-body">
+                <h5 class="card-title">{{ project.name }}</h5>
+                <p class="card-text text-muted small">负责人: {{ project.manager or '未指定' }}</p>
+                <p class="card-text text-muted small">时间: {{ project.start_date if project.start_date else '-' }} ~ {{ project.estimated_end_date if project.estimated_end_date else '-' }}</p>
+                <p class="card-text text-muted small">备注: {{ project.remark or '-' }}</p>
+                <hr>
+                <div class="d-flex justify-content-between align-items-center">
+                    <span class="text-muted small">设备总数: {{ project.devices|length }}</span>
+                    <div>
+                        {% if current_user.role == '超级管理员' %}
+                        <button class="btn btn-sm btn-outline-warning" onclick="event.stopPropagation();editProject({{ project.id }},'{{ project.name }}','{{ project.manager or '' }}','{{ project.start_date or '' }}','{{ project.estimated_end_date or '' }}','{{ project.remark or '' }}')">编辑</button>
+                        <form method="POST" action="{{ url_for('project_delete', id=project.id) }}" style="display:inline;" onsubmit="return confirm('确认删除此项目？');">
+                            <button class="btn btn-sm btn-outline-danger">删除</button>
+                        </form>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12"><div class="alert alert-info">暂无项目，请创建</div></div>
+    {% endfor %}
+</div>
+
+<!-- 新建/编辑项目模态框 -->
+<div class="modal fade" id="projectModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="projectForm" method="POST" action="{{ url_for('project_add') }}">
+                <div class="modal-header"><h5 class="modal-title">项目信息</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <div class="mb-3"><label class="form-label">项目名称 *</label><input type="text" name="name" id="projectName" class="form-control" required></div>
+                    <div class="mb-3"><label class="form-label">负责人</label><input type="text" name="manager" id="projectManager" class="form-control"></div>
+                    <div class="row g-2">
+                        <div class="col-6"><label class="form-label">项目开始时间</label><input type="date" name="start_date" id="projectStartDate" class="form-control"></div>
+                        <div class="col-6"><label class="form-label">预估结束时间</label><input type="date" name="estimated_end_date" id="projectEndDate" class="form-control"></div>
+                    </div>
+                    <div class="mb-3 mt-2"><label class="form-label">备注</label><textarea name="remark" id="projectRemark" class="form-control" rows="2"></textarea></div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button type="submit" class="btn btn-primary">保存</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+function editProject(id, name, manager, startDate, endDate, remark) {
+    document.getElementById('projectForm').action = '/project/' + id + '/edit';
+    document.getElementById('projectName').value = name;
+    document.getElementById('projectManager').value = manager;
+    document.getElementById('projectStartDate').value = startDate || '';
+    document.getElementById('projectEndDate').value = endDate || '';
+    document.getElementById('projectRemark').value = remark;
+    document.querySelector('#projectModal .modal-title').textContent = '编辑项目';
+    new bootstrap.Modal(document.getElementById('projectModal')).show();
+}
+document.getElementById('projectModal').addEventListener('hidden.bs.modal', function () {
+    this.querySelector('form').action = '{{ url_for("project_add") }}';
+    this.querySelector('.modal-title').textContent = '项目信息';
+    this.querySelectorAll('input, textarea').forEach(el => el.value = '');
+});
+</script>
+{% endblock %}

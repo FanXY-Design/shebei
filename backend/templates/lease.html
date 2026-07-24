@@ -1,0 +1,190 @@
+{% extends "base.html" %}
+{% block title %}租赁设备管理{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>📋 租赁设备管理</h4>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#leaseModal">新增租赁设备</button>
+</div>
+
+<div class="table-container">
+    <div class="table-responsive">
+        <table class="table table-hover table-sm">
+            <thead>
+                <tr>
+                    <th style="width: 12%;">类别</th>
+                    <th style="width: 15%;">品牌</th>
+                    <th style="width: 18%;">型号</th>
+                    <th class="d-none d-sm-table-cell" style="width: 15%;">序列号</th>
+                    <th style="width: 15%;">所属项目</th>
+                    <th class="d-none d-md-table-cell" style="width: 12%;">供应商</th>
+                    <th class="d-none d-md-table-cell" style="width: 13%;">到期日期</th>
+                    <th style="width: 10%;">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in lease_devices %}
+                <tr>
+                    <td>{{ d.category }}</td>
+                    <td>{{ d.brand }}</td>
+                    <td class="text-truncate" title="{{ d.model }}">{{ d.model }}</td>
+                    <td class="d-none d-sm-table-cell"><code class="text-xs">{{ d.serial_number }}</code></td>
+                    <td>{{ d.project.name if d.project else '-' }}</td>
+                    <td class="d-none d-md-table-cell">{{ d.lease.supplier if d.lease else '-' }}</td>
+                    <td class="d-none d-md-table-cell">
+                        {% if d.lease and d.lease.end_date %}
+                        {{ d.lease.end_date }}
+                        {% set days_left = (d.lease.end_date - now.date()).days %}
+                        {% if days_left <= 30 and days_left > 0 %}
+                        <span class="badge bg-warning text-dark">即将到期</span>
+                        {% elif days_left <= 0 %}
+                        <span class="badge bg-danger">已超期</span>
+                        {% endif %}
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="{{ url_for('device_detail', id=d.id) }}" class="btn btn-sm btn-outline-primary" title="详情"><i class="bi bi-eye"></i></a>
+                        <button class="btn btn-sm btn-outline-success" onclick="transferDevice({{ d.id }})" title="调拨"><i class="bi bi-arrow-right-left"></i></button>
+                        <button class="btn btn-sm btn-outline-danger" onclick="quickAction({{ d.id }},'报废')" title="报废"><i class="bi bi-trash"></i></button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8" class="text-center text-muted py-4">暂无租赁设备</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="leaseModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form id="leaseForm" method="POST" action="{{ url_for('lease_add') }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="leaseModalTitle">新增租赁设备</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">类别 *</label>
+                            <select name="category" class="form-select" required>
+                                <option value="">请选择</option>
+                                {% for c in categories %}
+                                <option value="{{ c.name }}">{{ c.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">品牌 *</label>
+                            <input type="text" name="brand" id="leaseBrand" class="form-control" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">型号 *</label>
+                            <input type="text" name="model" id="leaseModel" class="form-control" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">序列号 *</label>
+                            <input type="text" name="serial_number" id="leaseSerialNumber" class="form-control" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">资产编号</label>
+                            <input type="text" name="asset_number" id="leaseAssetNumber" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">所属项目</label>
+                            <select name="project_id" id="leaseProjectId" class="form-select">
+                                {% for p in projects %}
+                                <option value="{{ p.id }}">{{ p.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">供应商 *</label>
+                            <input type="text" name="supplier" id="leaseSupplier" class="form-control" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">合同号</label>
+                            <input type="text" name="contract_number" id="leaseContractNumber" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">开始日期</label>
+                            <input type="date" name="start_date" id="leaseStartDate" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">到期日期</label>
+                            <input type="date" name="end_date" id="leaseEndDate" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">月租金</label>
+                            <input type="number" step="0.01" name="monthly_cost" id="leaseMonthlyCost" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">总金额</label>
+                            <input type="number" step="0.01" name="total_cost" id="leaseTotalCost" class="form-control">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">备注</label>
+                            <textarea name="remark" id="leaseRemark" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button type="submit" class="btn btn-primary">保存</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="transferModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="transferForm" method="POST">
+                <div class="modal-header"><h5 class="modal-title">设备调拨</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <input type="hidden" name="action" value="调拨">
+                    <div class="mb-3"><label class="form-label">目标项目 *</label>
+                        <select name="target_project_id" class="form-select" required>
+                            {% for p in projects %}
+                            <option value="{{ p.id }}">{{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3"><label class="form-label">接收人</label><input type="text" name="receiver" class="form-control"></div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button type="submit" class="btn btn-success">确认调拨</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+function transferDevice(id) {
+    document.getElementById('transferForm').action = '/device/' + id + '/status';
+    new bootstrap.Modal(document.getElementById('transferModal')).show();
+}
+function quickAction(id, action) {
+    if (confirm('确认执行"'+ action +'"操作？')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/device/' + id + '/status';
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'action';
+        input.value = action;
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+document.getElementById('leaseModal').addEventListener('hidden.bs.modal', function() {
+    const form = document.getElementById('leaseForm');
+    form.action = '{{ url_for("lease_add") }}';
+    document.getElementById('leaseModalTitle').textContent = '新增租赁设备';
+    form.querySelectorAll('input, textarea, select').forEach(el => el.value = '');
+});
+</script>
+{% endblock %}

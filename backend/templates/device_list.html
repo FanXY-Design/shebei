@@ -1,0 +1,485 @@
+{% extends "base.html" %}
+{% block title %}设备管理{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h4 class="mb-0">🖥️ 设备管理</h4>
+    <div class="d-flex gap-2">
+        <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#importModal">
+            <i class="bi bi-upload"></i> 批量导入
+        </button>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDeviceModal">
+            <i class="bi bi-plus-lg"></i> 新增设备
+        </button>
+    </div>
+</div>
+
+<div class="filter-bar">
+    <div class="row g-2 align-items-end">
+        <div class="col-md-3">
+            <label class="form-label small">关键字搜索</label>
+            <input type="text" id="searchInput" class="form-control" placeholder="序列号/品牌/型号" value="{{ request.args.get('search','') }}">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label small">所属项目</label>
+            <select id="projectSelect" class="form-select">
+                <option value="">全部</option>
+                {% for p in projects %}
+                <option value="{{ p.id }}" {% if request.args.get('project_id')==p.id|string %}selected{% endif %}>{{ p.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label small">设备状态</label>
+            <select id="statusSelect" class="form-select">
+                <option value="">全部</option>
+                <option value="在用" {% if request.args.get('status')=='在用' %}selected{% endif %}>在用</option>
+                <option value="闲置" {% if request.args.get('status')=='闲置' %}selected{% endif %}>闲置</option>
+                <option value="维修中" {% if request.args.get('status')=='维修中' %}selected{% endif %}>维修中</option>
+                <option value="已报废" {% if request.args.get('status')=='已报废' %}selected{% endif %}>已报废</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label small">设备类别</label>
+            <select id="categorySelect" class="form-select">
+                <option value="">全部</option>
+                {% for c in categories %}
+                <option value="{{ c.name }}" {% if request.args.get('category')==c.name %}selected{% endif %}>{{ c.name }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-1">
+            <label class="form-label small">属性</label>
+            <select id="ownershipSelect" class="form-select">
+                <option value="">全部</option>
+                <option value="自有" {% if request.args.get('ownership')=='自有' %}selected{% endif %}>自有</option>
+                <option value="租赁" {% if request.args.get('ownership')=='租赁' %}selected{% endif %}>租赁</option>
+            </select>
+        </div>
+        <div class="col-md-2 d-flex gap-2">
+            <button id="resetBtn" class="btn btn-outline-secondary btn-sm">重置</button>
+        </div>
+    </div>
+</div>
+
+<div class="table-container">
+    <div class="bg-white p-3 border-bottom border-gray-200">
+        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <div class="d-flex align-items-center gap-3">
+                <input type="checkbox" id="selectAll" class="form-check-input">
+                <label for="selectAll" class="form-check-label">全选</label>
+                <span class="text-muted small" id="selectedCount">已选 0 台设备</span>
+            </div>
+            <div class="d-flex gap-2">
+                <button id="batchTransferBtn" class="btn btn-sm btn-outline-success" disabled>
+                    <i class="bi bi-arrow-right-left"></i> 批量调拨
+                </button>
+                <button id="batchRepairBtn" class="btn btn-sm btn-outline-warning" disabled>
+                    <i class="bi bi-wrench"></i> 批量送修
+                </button>
+                <button id="batchReturnBtn" class="btn btn-sm btn-outline-info" disabled>
+                    <i class="bi bi-box-arrow-left"></i> 批量归还
+                </button>
+                <button id="batchScrapBtn" class="btn btn-sm btn-outline-danger" disabled>
+                    <i class="bi bi-trash"></i> 批量报废
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover table-sm">
+            <thead>
+                <tr>
+                    <th style="width:40px;">
+                        <input type="checkbox" id="selectAllHeader" class="form-check-input">
+                    </th>
+                    <th class="d-none d-sm-table-cell" style="width: 10%;">类别</th>
+                    <th style="width: 15%;">品牌</th>
+                    <th style="width: 25%;">型号</th>
+                    <th class="d-none d-md-table-cell" style="width: 20%;">序列号</th>
+                    <th class="d-none d-lg-table-cell" style="width: 12%;">资产编号</th>
+                    <th class="d-none d-md-table-cell" style="width: 12%;">所在位置</th>
+                    <th style="width: 10%;">状态</th>
+                    <th class="d-none d-sm-table-cell" style="width: 8%;">属性</th>
+                    <th style="width: 10%;">操作</th>
+                </tr>
+            </thead>
+            <tbody id="deviceTableBody">
+                <tr><td colspan="10" class="text-center py-4 text-muted"><i class="bi bi-hourglass"></i> 加载中...</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('device_import') }}" enctype="multipart/form-data">
+                <div class="modal-header">
+                    <h5 class="modal-title">批量导入设备</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info mb-3">
+                        <strong>使用说明：</strong>
+                        <ul class="mb-0 small">
+                            <li>下载导入模板，按模板格式填写设备信息</li>
+                            <li>序列号为必填且唯一字段</li>
+                            <li>支持导入xlsx格式Excel文件</li>
+                        </ul>
+                    </div>
+                    <div class="mb-3">
+                        <a href="{{ url_for('device_import_template') }}" class="btn btn-outline-info btn-sm mb-2">
+                            <i class="bi bi-download"></i> 下载导入模板
+                        </a>
+                        <div class="input-group">
+                            <input type="file" name="file" class="form-control" accept=".xlsx" required>
+                        </div>
+                        <p class="text-muted small mt-2">支持 .xlsx 格式Excel文件</p>
+                    </div>
+                    <div class="border p-3 bg-light rounded">
+                        <span class="text-muted small">模板字段说明：</span>
+                        <table class="table table-sm mt-2">
+                            <thead><tr><th>字段名</th><th>必填</th><th>说明</th></tr></thead>
+                            <tbody>
+                                <tr><td>类别</td><td>✓</td><td>台式主机/笔记本/显示器/打印机/扫描仪</td></tr>
+                                <tr><td>品牌</td><td>✓</td><td>设备品牌</td></tr>
+                                <tr><td>型号</td><td>✓</td><td>设备型号</td></tr>
+                                <tr><td>序列号</td><td>✓</td><td>设备唯一序列号</td></tr>
+                                <tr><td>资产编号</td><td></td><td>公司资产编号</td></tr>
+                                <tr><td>属性</td><td></td><td>自有/租赁，默认自有</td></tr>
+                                <tr><td>采购日期</td><td></td><td>格式：YYYY-MM-DD</td></tr>
+                                <tr><td>采购单价</td><td></td><td>数字</td></tr>
+                                <tr><td>供应商</td><td></td><td>供应商名称</td></tr>
+                                <tr><td>质保截止</td><td></td><td>格式：YYYY-MM-DD</td></tr>
+                                <tr><td>备注</td><td></td><td>备注信息</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">确认导入</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="addDeviceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('device_add') }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">新增设备</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">类别 *</label>
+                            <select name="category" class="form-select" required>
+                                <option value="">请选择</option>
+                                {% for c in categories %}
+                                <option value="{{ c.name }}">{{ c.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">品牌 *</label>
+                            <input type="text" name="brand" class="form-control" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">型号 *</label>
+                            <input type="text" name="model" class="form-control" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">序列号 *</label>
+                            <input type="text" name="serial_number" class="form-control" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">资产编号</label>
+                            <input type="text" name="asset_number" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">属性</label>
+                            <select name="ownership" class="form-select">
+                                <option value="自有">自有</option>
+                                <option value="租赁">租赁</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">所属项目</label>
+                            <select name="project_id" class="form-select">
+                                {% for p in projects %}
+                                <option value="{{ p.id }}">{{ p.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">采购日期</label>
+                            <input type="date" name="purchase_date" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">采购单价</label>
+                            <input type="number" step="0.01" name="purchase_price" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">供应商</label>
+                            <input type="text" name="supplier" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">质保截止</label>
+                            <input type="date" name="warranty_end" class="form-control">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">备注</label>
+                            <textarea name="remark" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">确认添加</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="batchTransferModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('device_batch_action') }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">批量调拨</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="action" value="调拨">
+                    <input type="hidden" name="device_ids" id="batchDeviceIds">
+                    <div class="mb-3">
+                        <label class="form-label">目标项目 *</label>
+                        <select name="target_project_id" class="form-select" required>
+                            {% for p in projects %}
+                            <option value="{{ p.id }}">{{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">接收人</label>
+                        <input type="text" name="receiver" class="form-control">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">确认调拨</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="batchActionModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('device_batch_action') }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="batchActionTitle">批量操作</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="action" id="batchActionType">
+                    <input type="hidden" name="device_ids" id="batchActionDeviceIds">
+                    <p id="batchActionConfirm">确认执行此操作？</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">确认执行</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function loadDevices() {
+    const search = document.getElementById('searchInput').value;
+    const project_id = document.getElementById('projectSelect').value;
+    const status = document.getElementById('statusSelect').value;
+    const category = document.getElementById('categorySelect').value;
+    const ownership = document.getElementById('ownershipSelect').value;
+    
+    const url = new URL('/device/api', window.location.origin);
+    if (search) url.searchParams.set('search', search);
+    if (project_id) url.searchParams.set('project_id', project_id);
+    if (status) url.searchParams.set('status', status);
+    if (category) url.searchParams.set('category', category);
+    if (ownership) url.searchParams.set('ownership', ownership);
+    
+    fetch(url)
+        .then(response => response.json())
+        .then(devices => {
+            const tbody = document.getElementById('deviceTableBody');
+            if (devices.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="10" class="text-center py-4 text-muted">暂无设备，请点击"新增设备"添加</td></tr>';
+                return;
+            }
+            
+            tbody.innerHTML = devices.map(d => `
+                <tr>
+                    <td><input type="checkbox" name="device_ids" value="${d.id}" class="device-checkbox" ${d.status === '已报废' ? 'disabled' : ''}></td>
+                    <td class="d-none d-sm-table-cell">${d.category}</td>
+                    <td>${d.brand}</td>
+                    <td class="text-truncate" title="${d.model}">${d.model}</td>
+                    <td class="d-none d-md-table-cell"><code class="text-xs">${d.serial_number}</code></td>
+                    <td class="d-none d-lg-table-cell">${d.asset_number || '-'}</td>
+                    <td class="d-none d-md-table-cell">${d.project_name}</td>
+                    <td><span class="badge-status badge-${d.status}">${d.status}</span></td>
+                    <td class="d-none d-sm-table-cell">${d.ownership}</td>
+                    <td>
+                        <a href="/device/${d.id}" class="btn btn-sm btn-outline-primary" title="查看"><i class="bi bi-eye"></i></a>
+                        ${d.status !== '已报废' ? `<button class="btn btn-sm btn-outline-success" onclick="transferDevice(${d.id})" title="调拨"><i class="bi bi-arrow-right-left"></i></button>` : ''}
+                        ${d.status !== '维修中' && d.status !== '已报废' ? `<button class="btn btn-sm btn-outline-warning" onclick="quickAction(${d.id},'送修')" title="送修"><i class="bi bi-wrench"></i></button>` : ''}
+                        ${d.status === '在用' ? `<button class="btn btn-sm btn-outline-info" onclick="quickAction(${d.id},'归还')" title="归还"><i class="bi bi-box-arrow-left"></i></button>` : ''}
+                        ${d.status !== '已报废' ? `<button class="btn btn-sm btn-outline-danger" onclick="quickAction(${d.id},'报废')" title="报废"><i class="bi bi-trash"></i></button>` : ''}
+                        ${d.is_admin ? `<button class="btn btn-sm btn-danger" onclick="deleteDevice(${d.id})" title="删除"><i class="bi bi-x-circle"></i></button>` : ''}
+                    </td>
+                </tr>
+            `).join('');
+            
+            updateSelectAll();
+        })
+        .catch(error => {
+            console.error('加载设备失败:', error);
+            document.getElementById('deviceTableBody').innerHTML = '<tr><td colspan="10" class="text-center py-4 text-muted">加载失败，请刷新重试</td></tr>';
+        });
+}
+
+function updateSelectAll() {
+    const checkboxes = document.querySelectorAll('.device-checkbox');
+    const selectAll = document.getElementById('selectAll');
+    const selectAllHeader = document.getElementById('selectAllHeader');
+    const selectedCount = document.getElementById('selectedCount');
+    
+    let selected = 0;
+    checkboxes.forEach(cb => {
+        if (cb.checked) selected++;
+    });
+    
+    const allEnabled = Array.from(checkboxes).filter(cb => !cb.disabled);
+    selectAll.checked = allEnabled.length > 0 && allEnabled.every(cb => cb.checked);
+    selectAllHeader.checked = selectAll.checked;
+    selectedCount.textContent = `已选 ${selected} 台设备`;
+    
+    document.getElementById('batchTransferBtn').disabled = selected === 0;
+    document.getElementById('batchRepairBtn').disabled = selected === 0;
+    document.getElementById('batchReturnBtn').disabled = selected === 0;
+    document.getElementById('batchScrapBtn').disabled = selected === 0;
+}
+
+document.getElementById('selectAll').addEventListener('change', function() {
+    document.querySelectorAll('.device-checkbox').forEach(cb => {
+        if (!cb.disabled) cb.checked = this.checked;
+    });
+    updateSelectAll();
+});
+
+document.getElementById('selectAllHeader').addEventListener('change', function() {
+    document.querySelectorAll('.device-checkbox').forEach(cb => {
+        if (!cb.disabled) cb.checked = this.checked;
+    });
+    updateSelectAll();
+});
+
+document.addEventListener('change', function(e) {
+    if (e.target.classList.contains('device-checkbox')) {
+        updateSelectAll();
+    }
+});
+
+document.getElementById('searchInput').addEventListener('input', debounce(loadDevices, 300));
+document.getElementById('projectSelect').addEventListener('change', loadDevices);
+document.getElementById('statusSelect').addEventListener('change', loadDevices);
+document.getElementById('categorySelect').addEventListener('change', loadDevices);
+document.getElementById('ownershipSelect').addEventListener('change', loadDevices);
+
+document.getElementById('resetBtn').addEventListener('click', function() {
+    document.getElementById('searchInput').value = '';
+    document.getElementById('projectSelect').value = '';
+    document.getElementById('statusSelect').value = '';
+    document.getElementById('categorySelect').value = '';
+    document.getElementById('ownershipSelect').value = '';
+    loadDevices();
+});
+
+function debounce(func, wait) {
+    let timeout;
+    return function() {
+        clearTimeout(timeout);
+        timeout = setTimeout(func, wait);
+    };
+}
+
+function transferDevice(id) {
+    const modal = new bootstrap.Modal(document.getElementById('batchTransferModal'));
+    document.getElementById('batchDeviceIds').value = id;
+    modal.show();
+}
+
+function quickAction(id, action) {
+    const modal = new bootstrap.Modal(document.getElementById('batchActionModal'));
+    document.getElementById('batchActionType').value = action;
+    document.getElementById('batchActionDeviceIds').value = id;
+    document.getElementById('batchActionTitle').textContent = `批量${action}`;
+    document.getElementById('batchActionConfirm').textContent = `确认将选中设备${action}？`;
+    modal.show();
+}
+
+function deleteDevice(id) {
+    if (!confirm('确认删除该设备？此操作不可恢复。')) return;
+    
+    fetch(`/device/${id}/delete_api`, {
+        method: 'DELETE',
+        headers: {
+            'X-CSRFToken': document.querySelector('meta[name="csrf-token"]')?.content || ''
+        }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            loadDevices();
+        }
+    })
+    .catch(error => {
+        console.error('删除失败:', error);
+        alert('删除失败，请重试');
+    });
+}
+
+document.getElementById('batchTransferBtn').addEventListener('click', function() {
+    const ids = Array.from(document.querySelectorAll('.device-checkbox:checked')).map(cb => cb.value);
+    document.getElementById('batchDeviceIds').value = ids.join(',');
+    const modal = new bootstrap.Modal(document.getElementById('batchTransferModal'));
+    modal.show();
+});
+
+function batchActionClick(action, btnId) {
+    document.getElementById(btnId).addEventListener('click', function() {
+        const ids = Array.from(document.querySelectorAll('.device-checkbox:checked')).map(cb => cb.value);
+        document.getElementById('batchActionType').value = action;
+        document.getElementById('batchActionDeviceIds').value = ids.join(',');
+        document.getElementById('batchActionTitle').textContent = `批量${action}`;
+        document.getElementById('batchActionConfirm').textContent = `确认将选中设备${action}？`;
+        const modal = new bootstrap.Modal(document.getElementById('batchActionModal'));
+        modal.show();
+    });
+}
+
+batchActionClick('送修', 'batchRepairBtn');
+batchActionClick('归还', 'batchReturnBtn');
+batchActionClick('报废', 'batchScrapBtn');
+
+loadDevices();
+</script>
+{% endblock %}

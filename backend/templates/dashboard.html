@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}仪表盘 - 设备管理系统{% endblock %}
+{% block content %}
+
+<h4 class="mb-3">📊 设备仪表盘</h4>
+
+<!-- 统计卡片 -->
+<div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card stat-card primary p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-label">设备总数</div>
+                    <div class="stat-value">{{ total }}</div>
+                </div>
+                <i class="bi bi-pc-display fs-1 text-primary opacity-50"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card stat-card success p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-label">在用设备</div>
+                    <div class="stat-value">{{ in_use }}</div>
+                </div>
+                <i class="bi bi-check-circle fs-1 text-success opacity-50"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card stat-card warning p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-label">闲置待用</div>
+                    <div class="stat-value">{{ idle }}</div>
+                </div>
+                <i class="bi bi-inbox fs-1 text-warning opacity-50"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card stat-card danger p-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div class="stat-label">租赁即将到期</div>
+                    <div class="stat-value">{{ expiring }}</div>
+                </div>
+                <i class="bi bi-exclamation-triangle fs-1 text-danger opacity-50"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 最近操作日志 -->
+<div class="card">
+    <div class="card-header bg-white fw-bold">
+        <i class="bi bi-clock-history"></i> 最近操作日志
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">时间</th>
+                        <th style="width: 15%;">操作人</th>
+                        <th class="d-none d-sm-table-cell" style="width: 15%;">操作</th>
+                        <th class="d-none d-md-table-cell" style="width: 20%;">设备</th>
+                        <th style="width: 25%;">详情</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ log.username }}</td>
+                        <td class="d-none d-sm-table-cell"><span class="badge bg-info">{{ log.action }}</span></td>
+                        <td class="d-none d-md-table-cell">{{ log.device_serial }}</td>
+                        <td class="text-truncate" title="{{ log.detail }}">{{ log.detail }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="text-center text-muted py-4">暂无操作记录</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

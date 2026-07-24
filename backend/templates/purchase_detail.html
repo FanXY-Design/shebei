@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}采购单详情 - PO-{{ order.id }}{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h4 class="flex-shrink-0">📋 采购单详情</h4>
+    <a href="{{ url_for('purchase') }}" class="btn btn-outline-secondary flex-shrink-0">
+        <i class="bi bi-arrow-left"></i> 返回
+    </a>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header bg-white fw-bold">采购单信息</div>
+    <div class="card-body">
+        <div class="row g-3">
+            <div class="col-sm-6 col-md-3">
+                <span class="text-muted small">采购单号</span>
+                <div class="font-weight-bold text-lg">PO-{{ order.id }}</div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <span class="text-muted small">采购日期</span>
+                <div class="font-weight-bold">{{ order.purchase_date }}</div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <span class="text-muted small">供应商</span>
+                <div class="font-weight-bold text-truncate">{{ order.supplier }}</div>
+            </div>
+            <div class="col-sm-6 col-md-3">
+                <span class="text-muted small">总金额</span>
+                <div class="font-weight-bold text-primary">¥{{ '%.2f' % order.total_amount }}</div>
+            </div>
+            {% if order.remark %}
+            <div class="col-12">
+                <span class="text-muted small">备注</span>
+                <div class="break-all">{{ order.remark }}</div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header bg-white fw-bold">
+        <i class="bi bi-box"></i> 采购设备明细
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover table-sm">
+                <thead>
+                    <tr>
+                        <th class="d-none d-sm-table-cell" style="width: 10%;">类别</th>
+                        <th style="width: 15%;">品牌</th>
+                        <th style="width: 20%;">型号</th>
+                        <th class="d-none d-md-table-cell" style="width: 20%;">序列号</th>
+                        <th class="d-none d-lg-table-cell" style="width: 12%;">资产编号</th>
+                        <th style="width: 10%;">单价</th>
+                        <th class="d-none d-sm-table-cell" style="width: 10%;">状态</th>
+                        <th style="width: 8%;">操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for d in devices %}
+                    <tr>
+                        <td class="d-none d-sm-table-cell">{{ d.category }}</td>
+                        <td>{{ d.brand }}</td>
+                        <td class="text-truncate" title="{{ d.model }}">{{ d.model }}</td>
+                        <td class="d-none d-md-table-cell"><code class="text-xs">{{ d.serial_number }}</code></td>
+                        <td class="d-none d-lg-table-cell">{{ d.asset_number or '-' }}</td>
+                        <td>¥{{ '%.2f' % d.purchase_price if d.purchase_price else '-' }}</td>
+                        <td class="d-none d-sm-table-cell"><span class="badge-status badge-{{ d.status }}">{{ d.status }}</span></td>
+                        <td><a href="{{ url_for('device_detail', id=d.id) }}" class="btn btn-sm btn-outline-primary" title="查看详情"><i class="bi bi-eye"></i></a></td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="8" class="text-center text-muted py-4">暂无关联设备</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+{% block styles %}
+<style>
+@media (max-width: 576px) {
+    .card-header {
+        padding: 12px 16px;
+        font-size: 14px;
+    }
+    .card-body {
+        padding: 16px;
+    }
+    .table-responsive {
+        border-radius: 8px;
+        overflow: hidden;
+    }
+    .table th, .table td {
+        padding: 10px 12px;
+        font-size: 13px;
+    }
+    .badge-status {
+        padding: 3px 8px;
+        font-size: 11px;
+    }
+    .font-weight-bold.text-lg {
+        font-size: 1.1rem;
+    }
+}
+</style>
+{% endblock %}

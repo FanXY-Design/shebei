@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block title %}项目设备巡视{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+    <h4>👁️ 项目设备巡视</h4>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('project_export', id=current_project.id) }}" class="btn btn-outline-success">
+            <i class="bi bi-download"></i> 导出设备
+        </a>
+        <button class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#importModal">
+            <i class="bi bi-upload"></i> 批量导入
+        </button>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDeviceModal">
+            <i class="bi bi-plus-lg"></i> 新增设备
+        </button>
+    </div>
+</div>
+
+<!-- 项目切换 -->
+<div class="walk-nav">
+    <div>
+        {% set project_list = projects|list %}
+        {% set current_index = project_list.index(current_project) if current_project in project_list else 0 %}
+        <a href="?project_id={{ project_list[current_index-1].id if current_index > 0 else project_list[-1].id }}" class="btn btn-outline-secondary btn-sm me-2">◀ 上一个</a>
+        <a href="?project_id={{ project_list[current_index+1].id if current_index < project_list|length - 1 else project_list[0].id }}" class="btn btn-outline-secondary btn-sm">下一个 ▶</a>
+    </div>
+    <div class="walk-project-name">{{ current_project.name }}</div>
+    <div>
+        <select class="form-select form-select-sm" onchange="location.href='?project_id='+this.value">
+            {% for p in projects %}
+            <option value="{{ p.id }}" {% if p.id == current_project.id %}selected{% endif %}>{{ p.name }}</option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+<!-- 项目统计 -->
+<div class="row g-2 mb-3">
+    <div class="col-md-2"><span class="text-muted">负责人: {{ current_project.manager or '-' }}</span></div>
+    <div class="col-md-3"><span class="text-muted">时间: {{ current_project.start_date or '-' }} ~ {{ current_project.estimated_end_date or '-' }}</span></div>
+    <div class="col-md-2"><span class="badge-status badge-在用">在用: {{ devices|selectattr('status','equalto','在用')|list|length }}</span></div>
+    <div class="col-md-2"><span class="badge-status badge-闲置">闲置: {{ devices|selectattr('status','equalto','闲置')|list|length }}</span></div>
+    <div class="col-md-2"><span class="badge-status badge-维修中">维修: {{ devices|selectattr('status','equalto','维修中')|list|length }}</span></div>
+</div>
+
+<!-- 设备列表 -->
+<div class="table-container">
+    <div class="table-responsive">
+        <table class="table table-hover table-sm">
+            <thead>
+                <tr>
+                    <th class="d-none d-sm-table-cell" style="width: 10%;">类别</th>
+                    <th style="width: 15%;">品牌</th>
+                    <th style="width: 25%;">型号</th>
+                    <th class="d-none d-md-table-cell" style="width: 20%;">序列号</th>
+                    <th class="d-none d-lg-table-cell" style="width: 12%;">资产编号</th>
+                    <th style="width: 12%;">状态</th>
+                    <th class="d-none d-sm-table-cell" style="width: 8%;">属性</th>
+                    <th style="width: 8%;">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in devices %}
+                <tr>
+                    <td class="d-none d-sm-table-cell">{{ d.category }}</td>
+                    <td>{{ d.brand }}</td>
+                    <td class="text-truncate" title="{{ d.model }}">{{ d.model }}</td>
+                    <td class="d-none d-md-table-cell"><code class="text-xs">{{ d.serial_number }}</code></td>
+                    <td class="d-none d-lg-table-cell">{{ d.asset_number or '-' }}</td>
+                    <td><span class="badge-status badge-{{ d.status }}">{{ d.status }}</span></td>
+                    <td class="d-none d-sm-table-cell">{{ d.ownership }}</td>
+                    <td><a href="{{ url_for('device_detail', id=d.id) }}" class="btn btn-sm btn-outline-primary" title="详情"><i class="bi bi-eye"></i></a></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="8" class="text-center text-muted py-4">该项目暂无设备</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 批量导入模态框 -->
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('device_import') }}" enctype="multipart/form-data">
+                <div class="modal-header">
+                    <h5 class="modal-title">为 {{ current_project.name }} 批量导入设备</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="project_id" value="{{ current_project.id }}">
+                    <div class="alert alert-info mb-3">
+                        <strong>使用说明：</strong>
+                        <ul class="mb-0 small">
+                            <li>下载导入模板，按模板格式填写设备信息</li>
+                            <li>序列号为必填且唯一字段</li>
+                            <li>支持导入xlsx格式Excel文件</li>
+                        </ul>
+                    </div>
+                    <div class="mb-3">
+                        <a href="{{ url_for('device_import_template') }}" class="btn btn-outline-info btn-sm mb-2">
+                            <i class="bi bi-download"></i> 下载导入模板
+                        </a>
+                        <div class="input-group">
+                            <input type="file" name="file" class="form-control" accept=".xlsx" required>
+                        </div>
+                        <p class="text-muted small mt-2">支持 .xlsx 格式Excel文件</p>
+                    </div>
+                    <div class="border p-3 bg-light rounded">
+                        <span class="text-muted small">模板字段说明：</span>
+                        <table class="table table-sm mt-2">
+                            <thead><tr><th>字段名</th><th>必填</th><th>说明</th></tr></thead>
+                            <tbody>
+                                <tr><td>类别</td><td>✓</td><td>台式主机/笔记本/显示器/打印机/扫描仪</td></tr>
+                                <tr><td>品牌</td><td>✓</td><td>设备品牌</td></tr>
+                                <tr><td>型号</td><td>✓</td><td>设备型号</td></tr>
+                                <tr><td>序列号</td><td>✓</td><td>设备唯一序列号</td></tr>
+                                <tr><td>资产编号</td><td></td><td>公司资产编号</td></tr>
+                                <tr><td>属性</td><td></td><td>自有/租赁，默认自有</td></tr>
+                                <tr><td>采购日期</td><td></td><td>格式：YYYY-MM-DD</td></tr>
+                                <tr><td>采购单价</td><td></td><td>数字</td></tr>
+                                <tr><td>供应商</td><td></td><td>供应商名称</td></tr>
+                                <tr><td>质保截止</td><td></td><td>格式：YYYY-MM-DD</td></tr>
+                                <tr><td>备注</td><td></td><td>备注信息</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">确认导入</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 新增设备模态框 -->
+<div class="modal fade" id="addDeviceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('device_add') }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">为 {{ current_project.name }} 新增设备</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="hidden" name="project_id" value="{{ current_project.id }}">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">类别 *</label>
+                            <select name="category" class="form-select" required>
+                                <option value="">请选择</option>
+                                {% for c in categories %}
+                                <option value="{{ c.name }}">{{ c.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">品牌 *</label>
+                            <input type="text" name="brand" class="form-control" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">型号 *</label>
+                            <input type="text" name="model" class="form-control" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">序列号 *</label>
+                            <input type="text" name="serial_number" class="form-control" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">资产编号</label>
+                            <input type="text" name="asset_number" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">属性</label>
+                            <select name="ownership" class="form-select">
+                                <option value="自有">自有</option>
+                                <option value="租赁">租赁</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">采购日期</label>
+                            <input type="date" name="purchase_date" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">采购单价</label>
+                            <input type="number" step="0.01" name="purchase_price" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">供应商</label>
+                            <input type="text" name="supplier" class="form-control">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">质保截止</label>
+                            <input type="date" name="warranty_end" class="form-control">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">备注</label>
+                            <textarea name="remark" class="form-control" rows="2"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">确认添加</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

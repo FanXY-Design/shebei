@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}采购入库{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>🛒 采购入库</h4>
+    <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#purchaseModal">新建采购单</button>
+</div>
+
+<div class="table-container">
+    <div class="table-responsive">
+        <table class="table table-hover table-sm">
+            <thead>
+                <tr>
+                    <th style="width: 15%;">采购单号</th>
+                    <th class="d-none d-sm-table-cell" style="width: 18%;">采购日期</th>
+                    <th style="width: 25%;">供应商</th>
+                    <th style="width: 15%;">总金额</th>
+                    <th class="d-none d-md-table-cell" style="width: 20%;">备注</th>
+                    <th style="width: 7%;">操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for order in orders %}
+                <tr>
+                    <td>PO-{{ order.id }}</td>
+                    <td class="d-none d-sm-table-cell">{{ order.purchase_date }}</td>
+                    <td class="text-truncate" title="{{ order.supplier }}">{{ order.supplier }}</td>
+                    <td>¥{{ '%.2f' % order.total_amount }}</td>
+                    <td class="d-none d-md-table-cell text-truncate" title="{{ order.remark or '-' }}">{{ order.remark or '-' }}</td>
+                    <td><a href="{{ url_for('purchase_detail', id=order.id) }}" class="btn btn-sm btn-outline-info" title="查看明细"><i class="bi bi-eye"></i></a></td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="text-center text-muted py-4">暂无采购记录</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 采购入库模态框 -->
+<div class="modal fade" id="purchaseModal" tabindex="-1">
+    <div class="modal-dialog modal-xl">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('purchase_add') }}">
+                <div class="modal-header"><h5 class="modal-title">新建采购单</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-3"><label class="form-label">采购日期 *</label><input type="date" name="purchase_date" class="form-control" required></div>
+                        <div class="col-md-3"><label class="form-label">供应商 *</label><input type="text" name="supplier" class="form-control" required></div>
+                        <div class="col-md-6"><label class="form-label">备注</label><input type="text" name="remark" class="form-control"></div>
+                    </div>
+                    <table class="table table-bordered" id="purchaseItems">
+                        <thead><tr><th>类别</th><th>品牌</th><th>型号</th><th>数量</th><th>单价</th><th>小计</th><th></th></tr></thead>
+                        <tbody>
+                            <tr>
+                                <td><select name="category" class="form-select form-select-sm category-select" required>
+                                    {% for c in categories %}
+                                    <option value="{{ c.name }}">{{ c.name }}</option>
+                                    {% endfor %}
+                                </select></td>
+                                <td><input type="text" name="brand" class="form-control form-control-sm" required></td>
+                                <td><input type="text" name="model" class="form-control form-control-sm" required></td>
+                                <td><input type="number" name="quantity" class="form-control form-control-sm" value="1" min="1" onchange="calcRow(this)"></td>
+                                <td><input type="number" name="price" class="form-control form-control-sm" step="0.01" onchange="calcRow(this)"></td>
+                                <td class="subtotal">¥0.00</td>
+                                <td><button type="button" class="btn btn-danger btn-sm" onclick="this.closest('tr').remove()">×</button></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="addRow()">+ 添加行</button>
+                    <div class="text-end mt-2"><strong>总计: <span id="grandTotal">¥0.00</span></strong></div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button type="submit" class="btn btn-primary">确认入库</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+function calcRow(el) {
+    const row = el.closest('tr');
+    const qty = parseFloat(row.querySelector('[name="quantity"]').value) || 0;
+    const price = parseFloat(row.querySelector('[name="price"]').value) || 0;
+    row.querySelector('.subtotal').textContent = '¥' + (qty * price).toFixed(2);
+    updateTotal();
+}
+function updateTotal() {
+    let total = 0;
+    document.querySelectorAll('.subtotal').forEach(cell => {
+        total += parseFloat(cell.textContent.replace('¥','')) || 0;
+    });
+    document.getElementById('grandTotal').textContent = '¥' + total.toFixed(2);
+}
+function addRow() {
+    const tbody = document.querySelector('#purchaseItems tbody');
+    const row = tbody.rows[0].cloneNode(true);
+    row.querySelectorAll('input').forEach(inp => inp.value = (inp.name === 'quantity' ? '1' : ''));
+    row.querySelector('.subtotal').textContent = '¥0.00';
+    const firstSelect = document.querySelector('.category-select');
+    const newSelect = row.querySelector('.category-select');
+    newSelect.innerHTML = firstSelect.innerHTML;
+    tbody.appendChild(row);
+}
+</script>
+{% endblock %}

@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}设备详情 - {{ device.serial_number }}{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4>📋 设备详情</h4>
+    <div>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editDeviceModal">
+            <i class="bi bi-pencil"></i> 编辑
+        </button>
+        <button class="btn btn-outline-success" onclick="transferDevice({{ device.id }})">调拨</button>
+        {% if device.status != '维修中' %}
+        <button class="btn btn-outline-warning" onclick="quickAction({{ device.id }},'送修')">送修</button>
+        {% endif %}
+        {% if device.status == '在用' %}
+        <button class="btn btn-outline-info" onclick="quickAction({{ device.id }},'归还')">归还</button>
+        {% endif %}
+        {% if device.status != '已报废' %}
+        <button class="btn btn-outline-danger" onclick="quickAction({{ device.id }},'报废')">报废</button>
+        {% endif %}
+    </div>
+</div>
+
+<div class="row g-3">
+    <!-- 基本信息 -->
+    <div class="col-12 col-md-6">
+        <div class="card">
+            <div class="card-header bg-white fw-bold">基本信息</div>
+            <div class="card-body">
+                <table class="table table-bordered table-sm">
+                    <tr><th style="width:30%">类别</th><td>{{ device.category }}</td></tr>
+                    <tr><th>品牌</th><td>{{ device.brand }}</td></tr>
+                    <tr><th>型号</th><td>{{ device.model }}</td></tr>
+                    <tr><th>序列号</th><td><code>{{ device.serial_number }}</code></td></tr>
+                    <tr><th>资产编号</th><td>{{ device.asset_number or '-' }}</td></tr>
+                    <tr><th>属性</th><td>{{ device.ownership }}</td></tr>
+                    <tr><th>状态</th><td><span class="badge-status badge-{{ device.status }}">{{ device.status }}</span></td></tr>
+                    <tr><th>所在位置</th><td>{{ device.project.name if device.project else '-' }}</td></tr>
+                    <tr><th>采购日期</th><td>{{ device.purchase_date or '-' }}</td></tr>
+                    <tr><th>采购单价</th><td>{{ ('¥%.2f' % device.purchase_price) if device.purchase_price else '-' }}</td></tr>
+                    <tr><th>供应商</th><td>{{ device.supplier or '-' }}</td></tr>
+                    <tr><th>质保截止</th><td>{{ device.warranty_end or '-' }}</td></tr>
+                    <tr><th>备注</th><td>{{ device.remark or '-' }}</td></tr>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 操作日志 -->
+    <div class="col-12 col-md-6">
+        <div class="card">
+            <div class="card-header bg-white fw-bold">
+                <i class="bi bi-clock-history"></i> 操作记录
+            </div>
+            <div class="card-body" style="max-height:500px;overflow-y:auto;">
+                <ul class="list-group list-group-flush">
+                    {% for log in logs %}
+                    <li class="list-group-item px-0">
+                        <div class="d-flex justify-content-between">
+                            <strong>{{ log.username }}</strong>
+                            <small class="text-muted">{{ log.timestamp.strftime('%Y-%m-%d %H:%M') }}</small>
+                        </div>
+                        <span class="badge bg-secondary">{{ log.action }}</span>
+                        <span class="ms-2">{{ log.detail }}</span>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-muted text-center">暂无操作记录</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑设备模态框 -->
+<div class="modal fade" id="editDeviceModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('device_edit', id=device.id) }}">
+                <div class="modal-header">
+                    <h5 class="modal-title">编辑设备信息</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-3">
+                            <label class="form-label">类别 *</label>
+                            <select name="category" class="form-select" required>
+                                <option value="">请选择</option>
+                                {% for c in categories %}
+                                <option value="{{ c.name }}" {% if device.category == c.name %}selected{% endif %}>{{ c.name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">品牌 *</label>
+                            <input type="text" name="brand" class="form-control" value="{{ device.brand }}" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">型号 *</label>
+                            <input type="text" name="model" class="form-control" value="{{ device.model }}" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">序列号 *</label>
+                            <input type="text" name="serial_number" class="form-control" value="{{ device.serial_number }}" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">资产编号</label>
+                            <input type="text" name="asset_number" class="form-control" value="{{ device.asset_number or '' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">属性</label>
+                            <select name="ownership" class="form-select">
+                                <option value="自有" {% if device.ownership == '自有' %}selected{% endif %}>自有</option>
+                                <option value="租赁" {% if device.ownership == '租赁' %}selected{% endif %}>租赁</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">采购日期</label>
+                            <input type="date" name="purchase_date" class="form-control" value="{{ device.purchase_date or '' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">采购单价</label>
+                            <input type="number" step="0.01" name="purchase_price" class="form-control" value="{{ device.purchase_price or '' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">供应商</label>
+                            <input type="text" name="supplier" class="form-control" value="{{ device.supplier or '' }}">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">质保截止</label>
+                            <input type="date" name="warranty_end" class="form-control" value="{{ device.warranty_end or '' }}">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">备注</label>
+                            <textarea name="remark" class="form-control" rows="2">{{ device.remark or '' }}</textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存修改</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- 调拨模态框 -->
+<div class="modal fade" id="transferModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form id="transferForm" method="POST">
+                <div class="modal-header"><h5 class="modal-title">设备调拨</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+                <div class="modal-body">
+                    <input type="hidden" name="action" value="调拨">
+                    <div class="mb-3"><label class="form-label">目标项目 *</label>
+                        <select name="target_project_id" class="form-select" required>
+                            {% for p in Project.query.all() %}
+                            <option value="{{ p.id }}">{{ p.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3"><label class="form-label">接收人 *</label><input type="text" name="receiver" class="form-control" required></div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button><button type="submit" class="btn btn-success">确认调拨</button></div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function transferDevice(id) {
+    document.getElementById('transferForm').action = '/device/' + id + '/status';
+    new bootstrap.Modal(document.getElementById('transferModal')).show();
+}
+function quickAction(id, action) {
+    if (confirm('确认执行"'+ action +'"操作？')) {
+        const form = document.createElement('form');
+        form.method = 'POST';
+        form.action = '/device/' + id + '/status';
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'action';
+        input.value = action;
+        form.appendChild(input);
+        document.body.appendChild(form);
+        form.submit();
+    }
+}
+</script>
+{% endblock %}

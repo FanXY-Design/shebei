@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}报表中心{% endblock %}
+{% block content %}
+
+<h4 class="mb-3">📈 报表中心</h4>
+
+<div class="row g-3">
+    <div class="col-lg-4 col-md-6">
+        <div class="card p-4 text-center">
+            <i class="bi bi-file-earmark-spreadsheet fs-1 text-success"></i>
+            <h5 class="mt-2">项目资产明细表</h5>
+            <p class="text-muted small">按项目导出所有设备清单</p>
+            <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#projectAssetsModal">查看 & 导出</button>
+        </div>
+    </div>
+    <div class="col-lg-4 col-md-6">
+        <div class="card p-4 text-center">
+            <i class="bi bi-file-earmark-text fs-1 text-primary"></i>
+            <h5 class="mt-2">固定资产总账</h5>
+            <p class="text-muted small">自有设备财务明细</p>
+            <a href="{{ url_for('report_fixed_assets') }}" class="btn btn-outline-primary">查看 & 导出</a>
+        </div>
+    </div>
+    <div class="col-lg-4 col-md-6">
+        <div class="card p-4 text-center">
+            <i class="bi bi-cash-stack fs-1 text-warning"></i>
+            <h5 class="mt-2">租赁费用汇总</h5>
+            <p class="text-muted small">按项目/月份统计租金</p>
+            <a href="{{ url_for('report_lease_cost') }}" class="btn btn-outline-warning">查看 & 导出</a>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="projectAssetsModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">选择项目</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="list-group">
+                    {% for p in projects %}
+                    <a href="{{ url_for('report_project_assets', project_id=p.id) }}" class="list-group-item list-group-item-action">
+                        {{ p.name }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header bg-white fw-bold d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-funnel"></i> 操作日志审计</span>
+        <a href="{{ url_for('report_export') }}" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-download"></i> 导出全部日志
+        </a>
+    </div>
+    <div class="card-body">
+        <div class="row g-2 mb-3">
+            <div class="col-md-3"><input type="date" class="form-control form-control-sm" placeholder="开始日期"></div>
+            <div class="col-md-3"><input type="date" class="form-control form-control-sm" placeholder="结束日期"></div>
+            <div class="col-md-3"><input type="text" class="form-control form-control-sm" placeholder="操作人"></div>
+            <div class="col-md-3"><button class="btn btn-primary btn-sm w-100">查询日志</button></div>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover table-sm">
+                <thead>
+                    <tr>
+                        <th style="width: 25%;">时间</th>
+                        <th style="width: 15%;">操作人</th>
+                        <th class="d-none d-sm-table-cell" style="width: 15%;">操作类型</th>
+                        <th class="d-none d-md-table-cell" style="width: 20%;">设备</th>
+                        <th style="width: 25%;">详情</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                    <tr>
+                        <td>{{ log.timestamp.strftime('%Y-%m-%d %H:%M') }}</td>
+                        <td>{{ log.username }}</td>
+                        <td class="d-none d-sm-table-cell"><span class="badge bg-secondary">{{ log.action }}</span></td>
+                        <td class="d-none d-md-table-cell">{{ log.device_serial }}</td>
+                        <td class="text-truncate" title="{{ log.detail }}">{{ log.detail }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
