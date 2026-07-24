@@ -99,32 +99,19 @@ def load_user(user_id):
 
 with app.app_context():
     db.create_all()
-    conn = db.engine.connect()
-    cursor = conn.connection.cursor()
-    try:
-        cursor.execute("ALTER TABLE project ADD COLUMN start_date DATE")
-        conn.connection.commit()
-    except:
-        pass
-    try:
-        cursor.execute("ALTER TABLE project ADD COLUMN estimated_end_date DATE")
-        conn.connection.commit()
-    except:
-        pass
-    cursor.close()
-    conn.close()
     
     try:
         exists = db.session.execute(db.select(db.exists().where(Project.id == 1))).scalar()
-    except:
+    except Exception:
         exists = False
     if not exists:
         virtual = Project(id=1, name='公司待用库', is_virtual=True, manager='系统')
         db.session.add(virtual)
         db.session.commit()
+    
     try:
         admin_exists = db.session.execute(db.select(db.exists().where(User.username == 'admin'))).scalar()
-    except:
+    except Exception:
         admin_exists = False
     if not admin_exists:
         admin = User(username='admin', name='系统管理员', role='超级管理员',
@@ -136,7 +123,7 @@ with app.app_context():
     for cat_name in default_categories:
         try:
             exists = db.session.execute(db.select(db.exists().where(DeviceCategory.name == cat_name))).scalar()
-        except:
+        except Exception:
             exists = False
         if not exists:
             cat = DeviceCategory(name=cat_name)

@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: projectmanage
+    env: python
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn --chdir backend app:app
+    envVars:
+      - key: FLASK_DEBUG
+        value: false
+      - key: DATABASE_URI
+        fromDatabase:
+          name: projectmanage-db
+          property: connectionString
+      - key: SECRET_KEY
+        generateValue: true
+
+databases:
+  - name: projectmanage-db
+    databaseName: projectmanage
+    user: projectmanage
+    plan: starter
