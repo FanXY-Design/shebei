@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>项目设备管理系统 - 多维表格</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- 登录界面 -->
+  <div id="login-screen" class="login-screen">
+    <div class="login-card">
+      <div style="font-size:48px;margin-bottom:12px">📋</div>
+      <h1>项目设备管理系统</h1>
+      <p class="subtitle">多维表格版</p>
+      <form class="login-form" id="login-form">
+        <input type="text" id="login-username" placeholder="用户名" required autocomplete="username">
+        <input type="password" id="login-password" placeholder="密码" required autocomplete="current-password">
+        <button type="submit" class="btn btn-primary" style="width:100%;justify-content:center">登 录</button>
+      </form>
+      <p class="login-hint">默认账号：admin / admin123</p>
+    </div>
+  </div>
+
+  <!-- 主应用 -->
+  <div id="app" class="app hidden">
+    <!-- 侧边栏 -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <h2>📋 设备管理系统</h2>
+        <p>多维表格版</p>
+      </div>
+      <nav class="sidebar-nav" id="sidebar-nav"></nav>
+      <div class="sidebar-footer" id="sidebar-footer"></div>
+    </aside>
+
+    <!-- 主区域 -->
+    <main class="main">
+      <header class="topbar" id="topbar"></header>
+      <div class="content" id="content"></div>
+    </main>
+  </div>
+
+  <!-- 模态框 -->
+  <div id="modal-overlay" class="modal-overlay hidden">
+    <div class="modal" id="modal"></div>
+  </div>
+
+  <!-- Toast 容器 -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
